@@ -36,7 +36,7 @@ const doorCategories = {
 // Initialize door states
 Object.values(doorCategories).forEach(category => {
     category.forEach(door => {
-        doors[door.id] = false; // false = closed, true = open
+        doors[door.id] = false;
     });
 });
 
@@ -101,10 +101,7 @@ function logout() {
 let serverUpdateInterval = null;
 
 async function loadServers() {
-    // Simulate checking if studio is running
     const studioRunning = await checkStudioStatus();
-    
-    // Simulate getting live servers
     const liveServers = await getLiveServers();
     
     servers = [];
@@ -123,7 +120,6 @@ async function loadServers() {
     
     displayServers();
     
-    // Update servers every 5 seconds
     if (serverUpdateInterval) {
         clearInterval(serverUpdateInterval);
     }
@@ -131,63 +127,35 @@ async function loadServers() {
 }
 
 async function checkStudioStatus() {
-    // In production, this would ping your Roblox game
-    // For now, we'll simulate it
-    try {
-        const response = await fetch('http://localhost:8080/studio-status', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        }).catch(() => ({ ok: false }));
-        
-        if (response.ok) {
-            const data = await response.json();
-            return data.running;
-        }
-    } catch (error) {
-        console.log('Studio check failed, using simulation');
+    const heartbeat = localStorage.getItem('robloxHeartbeat');
+    if (heartbeat) {
+        const lastBeat = parseInt(heartbeat);
+        const now = Date.now();
+        return (now - lastBeat) < 10000;
     }
-    
-    // Simulation: 70% chance studio is running
-    return Math.random() > 0.3;
+    return false;
 }
 
 async function getLiveServers() {
-    // In production, this would get real Roblox servers
-    // For now, we'll simulate servers
-    try {
-        const response = await fetch('http://localhost:8080/live-servers', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        }).catch(() => ({ ok: false }));
-        
-        if (response.ok) {
-            const data = await response.json();
-            return data.servers;
+    const serversData = localStorage.getItem('robloxServers');
+    if (serversData) {
+        try {
+            return JSON.parse(serversData);
+        } catch (e) {
+            return [];
         }
-    } catch (error) {
-        console.log('Server fetch failed, using simulation');
     }
-    
-    // Simulation: Generate 2-5 random servers
-    const serverCount = Math.floor(Math.random() * 4) + 2;
-    const simulatedServers = [];
-    
-    for (let i = 0; i < serverCount; i++) {
-        simulatedServers.push({
-            id: `server-${Date.now()}-${i}`,
-            name: `Server ${i + 1}`,
-            players: Math.floor(Math.random() * 20) + 1,
-            isStudio: false,
-            status: 'active'
-        });
-    }
-    
-    return simulatedServers;
+    return [];
 }
 
 function displayServers() {
     const grid = document.getElementById('serverGrid');
     grid.innerHTML = '';
+    
+    if (servers.length === 0) {
+        grid.innerHTML = '<div style="color: white; padding: 20px; text-align: center; grid-column: 1/-1;">No servers available. Start a game in Roblox Studio!</div>';
+        return;
+    }
     
     servers.forEach(server => {
         const card = document.createElement('div');
@@ -227,8 +195,6 @@ function selectServer(server) {
     document.getElementById('selectedServerPlayers').textContent = server.players;
     
     loadDoorControls();
-    
-    // Start live updates for door states
     startDoorUpdates();
 }
 
@@ -283,11 +249,7 @@ function filterDoors() {
 // Toggle Door
 async function toggleDoor(doorId) {
     doors[doorId] = !doors[doorId];
-    
-    // Update UI
     updateDoorButton(doorId);
-    
-    // Send command to Roblox
     await sendDoorCommand(doorId, doors[doorId]);
 }
 
@@ -312,31 +274,12 @@ async function sendDoorCommand(doorId, isOpen) {
     
     console.log('Sending command:', command);
     
-    try {
-        const response = await fetch('http://localhost:8080/door-control', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(command)
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log('Command result:', result);
-            document.getElementById('connectionStatus').textContent = 'Connected';
-            document.getElementById('connectionStatus').style.color = '#10b981';
-        } else {
-            console.error('Command failed');
-            document.getElementById('connectionStatus').textContent = 'Error';
-            document.getElementById('connectionStatus').style.color = '#ef4444';
-        }
-    } catch (error) {
-        console.error('Connection error:', error);
-        document.getElementById('connectionStatus').textContent = 'Disconnected';
-        document.getElementById('connectionStatus').style.color = '#f59e0b';
-        
-        // Simulate command for demo purposes
-        console.log('SIMULATED:', command);
-    }
+    // Store command for Roblox to poll
+    localStorage.setItem('doorCommand', JSON.stringify(command));
+    localStorage.setItem('doorCommandTime', Date.now().toString());
+    
+    document.getElementById('connectionStatus').textContent = 'Command Sent';
+    document.getElementById('connectionStatus').style.color = '#10b981';
 }
 
 // Live Door Updates
@@ -349,27 +292,23 @@ function startDoorUpdates() {
     
     doorUpdateInterval = setInterval(async () => {
         await fetchDoorStates();
-    }, 2000);
+    }, 1000);
 }
 
 async function fetchDoorStates() {
-    try {
-        const response = await fetch(`http://localhost:8080/door-states?server=${selectedServer.id}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (response.ok) {
-            const states = await response.json();
+    const statesData = localStorage.getItem('doorStates');
+    if (statesData) {
+        try {
+            const states = JSON.parse(statesData);
             Object.keys(states).forEach(doorId => {
-                if (doors[doorId] !== states[doorId]) {
+                if (doors[doorId] !== undefined && doors[doorId] !== states[doorId]) {
                     doors[doorId] = states[doorId];
                     updateDoorButton(doorId);
                 }
             });
+        } catch (e) {
+            console.error('Error parsing door states:', e);
         }
-    } catch (error) {
-        // Silently fail - using local state
     }
 }
 
