@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Door Controller</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <h1 class="glow-text">Door Controller</h1>
+            <div class="login-box">
+                <input type="text" id="username" placeholder="Username" class="input-field">
+                <input type="password" id="password" placeholder="Password" class="input-field">
+                <button onclick="login()" class="btn btn-primary">Login</button>
+                <p id="loginError" class="error-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboardScreen" class="screen">
+        <div class="dashboard-container">
+            <div class="header">
+                <h1 class="glow-text">Door Control Panel</h1>
+                <button onclick="logout()" class="btn btn-logout">Logout</button>
+            </div>
+            
+            <div class="welcome-card">
+                <p>Welcome, <span id="currentUser"></span>!</p>
+            </div>
+
+            <div class="door-grid">
+                <div class="door-card">
+                    <div class="door-icon">🚪</div>
+                    <h3>First Door</h3>
+                    <div class="door-status">
+                        <span class="status-indicator" id="doorStatus"></span>
+                        <span id="doorStatusText">Closed</span>
+                    </div>
+                    <button onclick="toggleDoor()" class="btn btn-door" id="doorButton">
+                        Open Door
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Panel -->
+            <div id="adminPanel" class="admin-panel" style="display: none;">
+                <h2>User Management</h2>
+                <div class="user-list" id="userList"></div>
+                <div class="add-user-form">
+                    <h3>Add New User</h3>
+                    <input type="text" id="newUsername" placeholder="Username" class="input-field">
+                    <input type="password" id="newPassword" placeholder="Password" class="input-field">
+                    <button onclick="addUser()" class="btn btn-primary">Add User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
