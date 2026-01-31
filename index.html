@@ -20,30 +20,24 @@
         </div>
     </div>
 
-    <!-- Dashboard Screen -->
-    <div id="dashboardScreen" class="screen">
+    <!-- Server Selection Screen -->
+    <div id="serverScreen" class="screen">
         <div class="dashboard-container">
             <div class="header">
-                <h1 class="glow-text">Door Control Panel</h1>
+                <h1 class="glow-text">Select Server</h1>
                 <button onclick="logout()" class="btn btn-logout">Logout</button>
             </div>
             
             <div class="welcome-card">
-                <p>Welcome, <span id="currentUser"></span>!</p>
+                <p>Welcome, <span id="currentUser"></span>! Select a server to control doors.</p>
             </div>
 
-            <div class="door-grid">
-                <div class="door-card">
-                    <div class="door-icon">🚪</div>
-                    <h3>First Door</h3>
-                    <div class="door-status">
-                        <span class="status-indicator" id="doorStatus"></span>
-                        <span id="doorStatusText">Closed</span>
-                    </div>
-                    <button onclick="toggleDoor()" class="btn btn-door" id="doorButton">
-                        Open Door
-                    </button>
-                </div>
+            <div class="search-container">
+                <input type="text" id="serverSearch" placeholder="🔍 Search servers..." class="search-bar" oninput="filterServers()">
+            </div>
+
+            <div class="server-grid" id="serverGrid">
+                <!-- Servers will be populated here -->
             </div>
 
             <!-- Admin Panel -->
@@ -55,6 +49,58 @@
                     <input type="text" id="newUsername" placeholder="Username" class="input-field">
                     <input type="password" id="newPassword" placeholder="Password" class="input-field">
                     <button onclick="addUser()" class="btn btn-primary">Add User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Door Control Screen -->
+    <div id="controlScreen" class="screen">
+        <div class="dashboard-container">
+            <div class="header">
+                <button onclick="backToServers()" class="btn btn-back">← Back to Servers</button>
+                <h1 class="glow-text">Door Control</h1>
+                <button onclick="logout()" class="btn btn-logout">Logout</button>
+            </div>
+
+            <div class="server-info-card">
+                <div class="server-info-item">
+                    <span class="info-label">Server:</span>
+                    <span id="selectedServerName" class="info-value"></span>
+                </div>
+                <div class="server-info-item">
+                    <span class="info-label">Players:</span>
+                    <span id="selectedServerPlayers" class="info-value"></span>
+                </div>
+                <div class="server-info-item">
+                    <span class="info-label">Status:</span>
+                    <span id="connectionStatus" class="status-badge">Connected</span>
+                </div>
+            </div>
+
+            <div class="search-container">
+                <input type="text" id="doorSearch" placeholder="🔍 Search doors..." class="search-bar" oninput="filterDoors()">
+            </div>
+
+            <!-- Door Categories -->
+            <div class="category-section">
+                <h2 class="category-title">Main Doors</h2>
+                <div class="door-button-grid" id="mainDoors">
+                    <!-- Main doors will be populated here -->
+                </div>
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">Room Doors</h2>
+                <div class="door-button-grid" id="roomDoors">
+                    <!-- Room doors will be populated here -->
+                </div>
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">Special Doors</h2>
+                <div class="door-button-grid" id="specialDoors">
+                    <!-- Special doors will be populated here -->
                 </div>
             </div>
         </div>
