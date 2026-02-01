@@ -13,7 +13,7 @@ let nextRefresh = 5;
 const ROBLOX_GAME_ID = "109771177510848";
 
 // CORS Proxy to bypass Roblox's restrictions
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const CORS_PROXY = "";
 
 // Door Configuration
 const doorCategories = {
@@ -116,11 +116,8 @@ async function loadServers() {
     console.log('🔍 Fetching servers for game:', ROBLOX_GAME_ID);
     
     try {
-        // Build the Roblox API URL
-        const robloxUrl = `https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
-        
-        // Use CORS proxy to bypass restrictions
-        const proxyUrl = CORS_PROXY + encodeURIComponent(robloxUrl);
+       // Use RoProxy which mirrors Roblox APIs without CORS restrictions
+const proxyUrl = `https://games.roproxy.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
         console.log('📡 Fetching from:', proxyUrl);
         
         const response = await fetch(proxyUrl);
