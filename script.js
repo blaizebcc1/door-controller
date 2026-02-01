@@ -12,9 +12,6 @@ let nextRefresh = 5;
 // YOUR GAME ID
 const ROBLOX_GAME_ID = "109771177510848";
 
-// CORS Proxy to bypass Roblox's restrictions
-const CORS_PROXY = "";
-
 // Door Configuration
 const doorCategories = {
     main: [
@@ -116,59 +113,63 @@ async function loadServers() {
     console.log('🔍 Fetching servers for game:', ROBLOX_GAME_ID);
     
     try {
-        // Try multiple proxy methods
-        const proxies = [
-            `https://cors-anywhere.herokuapp.com/https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`,
-            `https://api.allorigins.win/get?url=${encodeURIComponent(`https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`)}`,
-            `https://corsproxy.io/?${encodeURIComponent(`https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`)}`
+        // Try multiple CORS proxies
+        const corsProxies = [
+            url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            url => `https://proxy.cors.sh/${url}`
         ];
         
-        let data = null;
-        let lastError = null;
+        const robloxUrl = `https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
         
-        // Try each proxy until one works
-        for (const proxyUrl of proxies) {
+        let data = null;
+        let successProxy = null;
+        
+        for (let i = 0; i < corsProxies.length; i++) {
+            const proxyUrl = corsProxies[i](robloxUrl);
+            
             try {
-                console.log('📡 Trying:', proxyUrl);
+                console.log(`📡 Trying proxy ${i + 1}...`);
                 const response = await fetch(proxyUrl);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    console.warn(`Proxy ${i + 1} returned ${response.status}`);
+                    continue;
                 }
                 
                 const result = await response.json();
                 
-                // Handle different proxy response formats
+                // Parse based on proxy format
                 if (result.contents) {
                     // allorigins format
                     data = JSON.parse(result.contents);
                 } else if (result.data) {
-                    // Direct format
                     data = result;
                 } else {
                     data = result;
                 }
                 
-                console.log('✅ Success with this proxy!');
+                successProxy = i + 1;
+                console.log(`✅ Proxy ${i + 1} succeeded!`);
                 break;
+                
             } catch (err) {
-                console.warn('❌ Proxy failed:', err.message);
-                lastError = err;
+                console.warn(`❌ Proxy ${i + 1} failed:`, err.message);
                 continue;
             }
         }
         
         if (!data) {
-            throw lastError || new Error('All proxies failed');
+            throw new Error('All CORS proxies failed. Your game may be private.');
         }
         
-        console.log('📦 Server data:', data);
+        console.log('📦 Server data received:', data);
         
         if (!data.data || data.data.length === 0) {
-            console.warn('⚠️ No servers found');
+            console.warn('⚠️ No active servers found');
             servers = [];
             displayServers();
-            updateConnectionStatus(false, 'No active servers found');
+            updateConnectionStatus(false, 'No active servers - Join your game!');
             return;
         }
         
@@ -183,15 +184,15 @@ async function loadServers() {
             status: 'active'
         }));
         
-        console.log('✨ Found', servers.length, 'servers');
+        console.log(`✨ Found ${servers.length} server(s)`);
         displayServers();
         updateConnectionStatus(true, `Found ${servers.length} server${servers.length !== 1 ? 's' : ''}`);
         
     } catch (error) {
-        console.error('❌ All methods failed:', error);
+        console.error('❌ Error:', error.message);
         servers = [];
         displayServers();
-        updateConnectionStatus(false, 'Connection failed - Game may be private');
+        updateConnectionStatus(false, 'Failed to load servers');
     }
 }
 
@@ -239,15 +240,15 @@ function displayServers() {
             <div style="color: white; padding: 40px; text-align: center; grid-column: 1/-1; background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px);">
                 <div style="font-size: 3em; margin-bottom: 20px;">🔍</div>
                 <h2 style="margin-bottom: 10px;">No Servers Found</h2>
-                <p style="opacity: 0.8; margin: 10px 0;">Make sure your game is:</p>
+                <p style="opacity: 0.8; margin: 10px 0;">Make sure:</p>
                 <ul style="list-style: none; padding: 0; opacity: 0.7;">
-                    <li>✓ Published to Roblox</li>
-                    <li>✓ Public or Unlisted (not Private)</li>
-                    <li>✓ Has at least one active server running</li>
-                    <li>✓ Game ID is correct: ${ROBLOX_GAME_ID}</li>
+                    <li>✓ Your game is Published to Roblox</li>
+                    <li>✓ Game is Public or Unlisted (NOT Private)</li>
+                    <li>✓ You are currently in-game (creates a server)</li>
                 </ul>
-                <p style="opacity: 0.6; font-size: 0.85em; margin-top: 20px;">Tip: Join your game to create a server!</p>
-                <button onclick="loadServers()" class="btn btn-primary" style="margin-top: 20px; width: auto;">🔄 Retry Now</button>
+                <p style="opacity: 0.6; font-size: 0.85em; margin-top: 20px;">Game ID: ${ROBLOX_GAME_ID}</p>
+                <a href="https://www.roblox.com/games/${ROBLOX_GAME_ID}" target="_blank" class="btn btn-primary" style="display: inline-block; margin-top: 15px; text-decoration: none;">🎮 Open Game</a>
+                <button onclick="loadServers()" class="btn btn-primary" style="margin-top: 10px; width: auto;">🔄 Retry</button>
             </div>
         `;
         return;
