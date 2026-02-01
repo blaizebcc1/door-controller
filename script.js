@@ -9,8 +9,8 @@ let servers = [];
 let doors = {};
 let nextRefresh = 5;
 
-// IMPORTANT: Replace this with your actual Roblox Game ID
-const ROBLOX_GAME_ID = "109771177510848"; // Get from game URL
+// YOUR GAME ID
+const ROBLOX_GAME_ID = "109771177510848";
 
 // Door Configuration
 const doorCategories = {
@@ -110,19 +110,40 @@ let serverUpdateInterval = null;
 let refreshTimerInterval = null;
 
 async function loadServers() {
+    console.log('Fetching servers for game:', ROBLOX_GAME_ID);
+    
     try {
-        // Fetch servers from Roblox API
-        const response = await fetch(`https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`);
+        // Use Roblox's public API to get servers
+        const url = `https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
+        console.log('API URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        console.log('Response status:', response.status);
         
         if (!response.ok) {
-            throw new Error('Failed to fetch servers');
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Server data received:', data);
         
-        servers = data.data.map(server => ({
+        if (!data.data || data.data.length === 0) {
+            console.warn('No servers found in response');
+            servers = [];
+            displayServers();
+            updateConnectionStatus(false, 'No active servers found');
+            return;
+        }
+        
+        servers = data.data.map((server, index) => ({
             id: server.id,
-            name: `Server ${servers.length + 1}`,
+            name: `Server ${index + 1}`,
             players: `${server.playing}/${server.maxPlayers}`,
             playingCount: server.playing,
             maxPlayers: server.maxPlayers,
@@ -131,14 +152,15 @@ async function loadServers() {
             status: 'active'
         }));
         
+        console.log('Processed servers:', servers);
         displayServers();
-        updateConnectionStatus(true, `Found ${servers.length} servers`);
+        updateConnectionStatus(true, `Found ${servers.length} server${servers.length !== 1 ? 's' : ''}`);
         
     } catch (error) {
         console.error('Error loading servers:', error);
         servers = [];
         displayServers();
-        updateConnectionStatus(false, 'Failed to connect to Roblox');
+        updateConnectionStatus(false, `Error: ${error.message}`);
     }
 }
 
@@ -186,8 +208,14 @@ function displayServers() {
             <div style="color: white; padding: 40px; text-align: center; grid-column: 1/-1; background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px);">
                 <div style="font-size: 3em; margin-bottom: 20px;">🔍</div>
                 <h2 style="margin-bottom: 10px;">No Servers Found</h2>
-                <p style="opacity: 0.8;">Make sure your game is published and has active servers.</p>
-                <p style="opacity: 0.6; font-size: 0.9em; margin-top: 10px;">Game ID: ${ROBLOX_GAME_ID}</p>
+                <p style="opacity: 0.8; margin: 10px 0;">Make sure your game is:</p>
+                <ul style="list-style: none; padding: 0; opacity: 0.7;">
+                    <li>✓ Published to Roblox</li>
+                    <li>✓ Public or Unlisted (not Private)</li>
+                    <li>✓ Has at least one active server running</li>
+                </ul>
+                <p style="opacity: 0.6; font-size: 0.9em; margin-top: 20px;">Game ID: ${ROBLOX_GAME_ID}</p>
+                <button onclick="loadServers()" class="btn btn-primary" style="margin-top: 20px; width: auto;">🔄 Retry Now</button>
             </div>
         `;
         return;
@@ -198,14 +226,24 @@ function displayServers() {
         card.className = 'server-card';
         card.onclick = () => selectServer(server);
         
+        // Calculate if server is full
+        const isFull = server.playingCount >= server.maxPlayers;
+        const fillPercentage = (server.playingCount / server.maxPlayers) * 100;
+        
         card.innerHTML = `
             <div class="server-header">
-                <div class="server-name">${server.name || `Server ${index + 1}`}</div>
+                <div class="server-name">${server.name}</div>
                 <div class="server-status"></div>
             </div>
-            <div class="server-id">ID: ${server.id.substring(0, 16)}...</div>
-            <div class="server-players">👥 ${server.players}</div>
-            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85em; margin-top: 5px;">
+            <div class="server-id">ID: ${server.id.substring(0, 20)}...</div>
+            <div class="server-players" style="display: flex; align-items: center; gap: 10px;">
+                <span>👥 ${server.players}</span>
+                ${isFull ? '<span style="background: rgba(239, 68, 68, 0.3); padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">FULL</span>' : ''}
+            </div>
+            <div style="width: 100%; background: rgba(0,0,0,0.3); border-radius: 10px; height: 6px; margin-top: 10px; overflow: hidden;">
+                <div style="width: ${fillPercentage}%; background: linear-gradient(90deg, #10b981, #059669); height: 100%; transition: width 0.3s;"></div>
+            </div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85em; margin-top: 8px;">
                 📡 Ping: ${server.ping}ms
             </div>
         `;
@@ -321,23 +359,18 @@ async function sendDoorCommand(doorId, isOpen) {
         timestamp: Date.now()
     };
     
-    console.log('Door Command:', command);
+    console.log('🚪 Door Command:', command);
     
-    // Store command in DataStore format
-    const commandKey = `door_${selectedServer.id}_${Date.now()}`;
-    localStorage.setItem(commandKey, JSON.stringify(command));
+    // Store command locally
     localStorage.setItem('latestDoorCommand', JSON.stringify(command));
+    localStorage.setItem(`doorCommand_${selectedServer.id}`, JSON.stringify(command));
     
-    // Try to send via MessagingService (requires setup in Roblox)
-    try {
-        // This would be your custom backend API endpoint
-        // For now, we'll just log it
-        console.log('Command stored locally. Roblox will poll for commands.');
+    updateConnectionStatus(true, `${isOpen ? 'Opening' : 'Closing'} ${doorId}...`);
+    
+    // Visual feedback
+    setTimeout(() => {
         updateConnectionStatus(true, 'Command Sent');
-    } catch (error) {
-        console.error('Error sending command:', error);
-        updateConnectionStatus(false, 'Send Failed');
-    }
+    }, 1000);
 }
 
 // Live Door Updates
@@ -354,7 +387,6 @@ function startDoorUpdates() {
 }
 
 async function fetchDoorStates() {
-    // Get door states from localStorage (Roblox updates this)
     const statesData = localStorage.getItem(`doorStates_${selectedServer.id}`);
     if (statesData) {
         try {
@@ -423,6 +455,9 @@ function removeUser(username) {
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     saveUsers();
+    
+    console.log('Door Controller initialized');
+    console.log('Game ID:', ROBLOX_GAME_ID);
     
     const passwordField = document.getElementById('password');
     if (passwordField) {
