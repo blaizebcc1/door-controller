@@ -116,23 +116,56 @@ async function loadServers() {
     console.log('🔍 Fetching servers for game:', ROBLOX_GAME_ID);
     
     try {
-       // Use RoProxy which mirrors Roblox APIs without CORS restrictions
-const proxyUrl = `https://games.roproxy.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
-        console.log('📡 Fetching from:', proxyUrl);
+        // Try multiple proxy methods
+        const proxies = [
+            `https://cors-anywhere.herokuapp.com/https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`,
+            `https://api.allorigins.win/get?url=${encodeURIComponent(`https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`)}`,
+            `https://corsproxy.io/?${encodeURIComponent(`https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`)}`
+        ];
         
-        const response = await fetch(proxyUrl);
+        let data = null;
+        let lastError = null;
         
-        console.log('📥 Response status:', response.status);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Try each proxy until one works
+        for (const proxyUrl of proxies) {
+            try {
+                console.log('📡 Trying:', proxyUrl);
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Handle different proxy response formats
+                if (result.contents) {
+                    // allorigins format
+                    data = JSON.parse(result.contents);
+                } else if (result.data) {
+                    // Direct format
+                    data = result;
+                } else {
+                    data = result;
+                }
+                
+                console.log('✅ Success with this proxy!');
+                break;
+            } catch (err) {
+                console.warn('❌ Proxy failed:', err.message);
+                lastError = err;
+                continue;
+            }
         }
         
-        const data = await response.json();
-        console.log('✅ Server data received:', data);
+        if (!data) {
+            throw lastError || new Error('All proxies failed');
+        }
+        
+        console.log('📦 Server data:', data);
         
         if (!data.data || data.data.length === 0) {
-            console.warn('⚠️ No servers found in response');
+            console.warn('⚠️ No servers found');
             servers = [];
             displayServers();
             updateConnectionStatus(false, 'No active servers found');
@@ -150,15 +183,15 @@ const proxyUrl = `https://games.roproxy.com/v1/games/${ROBLOX_GAME_ID}/servers/P
             status: 'active'
         }));
         
-        console.log('✨ Processed servers:', servers.length);
+        console.log('✨ Found', servers.length, 'servers');
         displayServers();
         updateConnectionStatus(true, `Found ${servers.length} server${servers.length !== 1 ? 's' : ''}`);
         
     } catch (error) {
-        console.error('❌ Error loading servers:', error);
+        console.error('❌ All methods failed:', error);
         servers = [];
         displayServers();
-        updateConnectionStatus(false, `Connection failed`);
+        updateConnectionStatus(false, 'Connection failed - Game may be private');
     }
 }
 
