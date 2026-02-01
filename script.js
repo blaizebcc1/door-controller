@@ -12,6 +12,9 @@ let nextRefresh = 5;
 // YOUR GAME ID
 const ROBLOX_GAME_ID = "109771177510848";
 
+// CORS Proxy to bypass Roblox's restrictions
+const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
 // Door Configuration
 const doorCategories = {
     main: [
@@ -110,31 +113,29 @@ let serverUpdateInterval = null;
 let refreshTimerInterval = null;
 
 async function loadServers() {
-    console.log('Fetching servers for game:', ROBLOX_GAME_ID);
+    console.log('🔍 Fetching servers for game:', ROBLOX_GAME_ID);
     
     try {
-        // Use Roblox's public API to get servers
-        const url = `https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
-        console.log('API URL:', url);
+        // Build the Roblox API URL
+        const robloxUrl = `https://games.roblox.com/v1/games/${ROBLOX_GAME_ID}/servers/Public?sortOrder=Desc&limit=100`;
         
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
+        // Use CORS proxy to bypass restrictions
+        const proxyUrl = CORS_PROXY + encodeURIComponent(robloxUrl);
+        console.log('📡 Fetching from:', proxyUrl);
         
-        console.log('Response status:', response.status);
+        const response = await fetch(proxyUrl);
+        
+        console.log('📥 Response status:', response.status);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('Server data received:', data);
+        console.log('✅ Server data received:', data);
         
         if (!data.data || data.data.length === 0) {
-            console.warn('No servers found in response');
+            console.warn('⚠️ No servers found in response');
             servers = [];
             displayServers();
             updateConnectionStatus(false, 'No active servers found');
@@ -152,15 +153,15 @@ async function loadServers() {
             status: 'active'
         }));
         
-        console.log('Processed servers:', servers);
+        console.log('✨ Processed servers:', servers.length);
         displayServers();
         updateConnectionStatus(true, `Found ${servers.length} server${servers.length !== 1 ? 's' : ''}`);
         
     } catch (error) {
-        console.error('Error loading servers:', error);
+        console.error('❌ Error loading servers:', error);
         servers = [];
         displayServers();
-        updateConnectionStatus(false, `Error: ${error.message}`);
+        updateConnectionStatus(false, `Connection failed`);
     }
 }
 
@@ -213,8 +214,9 @@ function displayServers() {
                     <li>✓ Published to Roblox</li>
                     <li>✓ Public or Unlisted (not Private)</li>
                     <li>✓ Has at least one active server running</li>
+                    <li>✓ Game ID is correct: ${ROBLOX_GAME_ID}</li>
                 </ul>
-                <p style="opacity: 0.6; font-size: 0.9em; margin-top: 20px;">Game ID: ${ROBLOX_GAME_ID}</p>
+                <p style="opacity: 0.6; font-size: 0.85em; margin-top: 20px;">Tip: Join your game to create a server!</p>
                 <button onclick="loadServers()" class="btn btn-primary" style="margin-top: 20px; width: auto;">🔄 Retry Now</button>
             </div>
         `;
@@ -226,7 +228,6 @@ function displayServers() {
         card.className = 'server-card';
         card.onclick = () => selectServer(server);
         
-        // Calculate if server is full
         const isFull = server.playingCount >= server.maxPlayers;
         const fillPercentage = (server.playingCount / server.maxPlayers) * 100;
         
@@ -271,14 +272,13 @@ function selectServer(server) {
     document.getElementById('selectedServerName').textContent = server.name;
     document.getElementById('selectedServerPlayers').textContent = server.players;
     
-    // Stop server refresh timer
     if (refreshTimerInterval) {
         clearInterval(refreshTimerInterval);
     }
     
     loadDoorControls();
     startDoorUpdates();
-    updateConnectionStatus(true, 'Connected');
+    updateConnectionStatus(true, 'Connected to ' + server.name);
 }
 
 function backToServers() {
@@ -290,7 +290,6 @@ function backToServers() {
         clearInterval(doorUpdateInterval);
     }
     
-    // Restart server refresh
     loadServers();
     startServerRefreshTimer();
 }
@@ -361,16 +360,15 @@ async function sendDoorCommand(doorId, isOpen) {
     
     console.log('🚪 Door Command:', command);
     
-    // Store command locally
+    // Store in localStorage for Roblox to poll
     localStorage.setItem('latestDoorCommand', JSON.stringify(command));
     localStorage.setItem(`doorCommand_${selectedServer.id}`, JSON.stringify(command));
     
     updateConnectionStatus(true, `${isOpen ? 'Opening' : 'Closing'} ${doorId}...`);
     
-    // Visual feedback
     setTimeout(() => {
-        updateConnectionStatus(true, 'Command Sent');
-    }, 1000);
+        updateConnectionStatus(true, 'Connected to ' + selectedServer.name);
+    }, 2000);
 }
 
 // Live Door Updates
@@ -456,8 +454,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     saveUsers();
     
-    console.log('Door Controller initialized');
-    console.log('Game ID:', ROBLOX_GAME_ID);
+    console.log('🎮 Door Controller initialized');
+    console.log('🆔 Game ID:', ROBLOX_GAME_ID);
+    console.log('🌐 Website:', 'https://blaizebcc1.github.io/door-controller/');
     
     const passwordField = document.getElementById('password');
     if (passwordField) {
